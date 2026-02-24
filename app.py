@@ -68,44 +68,53 @@ def main():
     timeframe = st.sidebar.selectbox("Timeframe", ["5m", "15m", "1h", "1d"], index=1)
     risk_amt = st.sidebar.number_input("Risk Per Trade (₹)", 500)
 
-    # Initialize df to avoid NameError
-    df = pd.DataFrame()
+    if 'df' not in st.session_state:
+        st.session_state.df = pd.DataFrame()
 
     if st.button("🚀 EXECUTE AI SCAN"):
         with st.spinner("Analyzing Market..."):
-            df = FridayAI.get_data(symbol, timeframe)
+            st.session_state.df = FridayAI.get_data(symbol, timeframe)
 
-        if not df.empty:
-            df = FridayAI.apply_brain(df)
-            last = df.iloc[-1]
-            price = last['Close']
+    df = st.session_state.df
 
-            # Price Check logic
-            display_price = f"₹{price:.2f}" if not pd.isna(price) else "N/A"
-            display_rsi = f"{last['RSI']:.1f}" if 'RSI' in last and not pd.isna(last['RSI']) else "N/A"
+    if not df.empty:
+        df = FridayAI.apply_brain(df)
+        last = df.iloc[-1]
+        price = last['Close']
 
-            # Metrics Row
-            m1, m2, m3 = st.columns(3)
-            m1.metric("Current Price", display_price)
-            m2.metric("RSI (Momentum)", display_rsi)
-
-            # Trend logic
-            trend_status = "NEUTRAL"
-            if not pd.isna(price) and 'EMA_200' in last and not pd.isna(last['EMA_200']):
-                trend_status = "BULLISH" if price > last['EMA_200'] else "BEARISH"
-            m3.metric("Trend (EMA 200)", trend_status)
-
-            st.divider()
-
-            # Chart and Patterns
-            is_hammer = FridayAI.detect_patterns(df)
-            fig = go.Figure(data=[go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'])])
-            fig.add_trace(go.Scatter(x=df.index, y=df['EMA_200'], name='EMA_200'))
-            fig.update_layout(template="plotly_dark", height=450)
-            st.plotly_chart(fig, use_container_width=True)
+        # --- YAHAN FIX HAI: Formatting se pehle check karein ---
+        if pd.isna(price):
+            display_price = "N/A"
         else:
-            st.error("Data fetch failed. Please check symbol.")
+            display_price = f"₹{float(price):.2f}"
 
-if __name__ == "__main__":
-    main()
+        # RSI aur EMA check
+        rsi_val = last.get('RSI', np.nan)
+        display_rsi = f"{float(rsi_val):.1f}" if not pd.isna(rsi_val) else "N/A"
 
+        # Metrics Row
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Current Price", display_price)
+        m2.metric("RSI (Momentum)", display_rsi)
+
+        # Trend Logic
+        trend_status = "NEUTRAL"
+        ema_200 = last.get('EMA_200', np.nan)
+        if not pd.isna(price) and not pd.isna(ema_200):
+            trend_status = "BULLISH" if price > ema_200 else "BEARISH"
+        m3.metric("Trend (EMA 200)", trend_status)
+
+        st.divider()
+
+        # Visual Chart
+        fig = go.Figure(data=[go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'])])
+        if 'EMA_200' in df.columns:
+            fig.add_trace(go.Scatter(x=df.index, y=df['EMA_200'], name='EMA_200', line=dict(color='orange')))
+        
+        fig.update_layout(template="plotly_dark", height=450, xaxis_rangeslider_visible=False)
+        st.plotly_chart(fig, use_container_width=True)
+    elif st.button: # Agar button daba par data nahi aaya
+        st.warning("Data nahi mil raha. Kripya symbol check karein (Jaise: RELIANCE.NS)")
+
+
+        
