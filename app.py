@@ -71,20 +71,31 @@ def main():
     if st.button("🚀 EXECUTE AI SCAN"):
         with st.spinner("Analyzing Market..."):
             df = FridayAI.get_data(symbol, timeframe)
-            
-            if not df.empty:
-                df = FridayAI.apply_brain(df)
-                last = df.iloc[-1]
-                price = last['Close']
-                
-                # Metrics Row
-                m1, m2, m3 = st.columns(3)
-                m1.metric("Current Price", f"₹{price:.2f}")
-                m2.metric("RSI (Momentum)", f"{last['RSI']:.1f}")
-                m3.metric("Trend (EMA 200)", "BULLISH" if price > last['EMA_200'] else "BEARISH")
 
-                # Decision Logic
-                is_hammer = FridayAI.detect_patterns(df)
+   if not df.empty:
+        df = FridayAI.apply_brain(df)
+        last = df.iloc[-1]
+        price = last['Close']
+
+        # Yahan hum check kar rahe hain ki price valid hai ya nahi
+        display_price = f"₹{price:.2f}" if not pd.isna(price) else "N/A"
+        display_rsi = f"{last['RSI']:.1f}" if 'RSI' in last and not pd.isna(last['RSI']) else "N/A"
+
+        # Metrics Row
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Current Price", display_price)
+        m2.metric("RSI (Momentum)", display_rsi)
+        
+        # Trend check ke liye safe logic
+        trend_status = "NEUTRAL"
+        if not pd.isna(price) and 'EMA_200' in last and not pd.isna(last['EMA_200']):
+            trend_status = "BULLISH" if price > last['EMA_200'] else "BEARISH"
+            
+        m3.metric("Trend (EMA 200)", trend_status)
+
+        # Decision Logic
+        is_hammer = FridayAI.detect_patterns(df)
+
                 
                 st.divider()
                 
