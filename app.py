@@ -72,7 +72,7 @@ def main():
         with st.spinner("Analyzing Market..."):
             df = FridayAI.get_data(symbol, timeframe)
 
-   if not df.empty:
+    if not df.empty:
         df = FridayAI.apply_brain(df)
         last = df.iloc[-1]
         price = last['Close']
